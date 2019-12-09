@@ -11,7 +11,7 @@ namespace app\wechat\controller;
 
 use think\Controller;
 
-class index extends Controller
+class Index extends Controller
 {
     public function checkDeveloper()
     {
