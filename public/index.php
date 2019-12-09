@@ -10,6 +10,17 @@
 // +----------------------------------------------------------------------
 
 // [ 应用入口文件 ]
+if($_SERVER['SERVER_SOFTWARE']=='zlk_nginx'){
+    $environment='product';
+}elseif ($_SERVER['SERVER_SOFTWARE']=='test_nginx'){
+    $environment='test';
+}else{
+    $environment='local';
+}
+if(defined('APP_MODE')&&APP_MODE=='cli'){
+    $environment='product';
+}
+define('DEMOENV',$environment);
 
 // 定义应用目录
 define('APP_PATH', __DIR__ . '/../application/');
