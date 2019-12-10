@@ -38,53 +38,67 @@ class WechatOauth
     }
 
     /**
-     * 获取openid
-     * @return string|mixed
+     * 获取access_token和openid
+     * @param string $code
+     * @param string $scope
+     * @return array|mixed
      */
-    public function getUserAccessUserInfo($code = "")
+    public function getUserAccessUserInfo($code = "",$scope='')
     {
         if (empty($code)) {
-            $baseUrl = request()->url(true);
-            $url = $this->getSingleAuthorizeUrl($baseUrl, "123");
+            $baseUrl = request()->url(true); //回调地址
+            $state=md5('pkvb2gfh65dt');
+            $url = $this->getAuthorizeCode($baseUrl,$scope,$state);
             Header("Location: $url");
             exit();
         } else {
-            $access_token = $this->getSingleAccessToken($code);
-            return $this->getUserInfo($access_token);
+            $data = $this->getOauthAccessToken($code); //获取access_token 和 open_id
+            /*返回示例{
+                "access_token":"ACCESS_TOKEN",
+                "expires_in":7200,
+                "refresh_token":"REFRESH_TOKEN",
+                "openid":"OPENID",
+                "scope":"SCOPE"
+             }*/
+            return $this->getUserInfo($data['access_token'],$data['openid']);
         }
     }
 
     /**
-     * 微信授权链接
-     * @param  string $redirect_uri 要跳转的地址
-     * @return [type]               授权链接
+     * 获取access_token之前 获取code
+     * @param string $redirect_url
+     * @param string $scope
+     * @param string $state
+     * @return string
      */
-    public function getSingleAuthorizeUrl($redirect_url = "", $state = '1')
+    private function getAuthorizeCode($redirect_url = "",$scope='',$state = '1')
     {
         $redirect_url = urlencode($redirect_url);
-        return "https://open.weixin.qq.com/connect/oauth2/authorize?appid=" . $this->wechat_config['appid'] . "&redirect_uri=" . $redirect_url . "&response_type=code&scope=snsapi_userinfo&state={$state}#wechat_redirect";
+        if ($scope=='snsapi_login'){
+            return "https://open.weixin.qq.com/connect/qrconnect?appid={$this->wechat_config['appid']}&redirect_uri={$redirect_url}&response_type=code&scope={$scope}&state={$state}#wechat_redirect";
+        }
+        return "https://open.weixin.qq.com/connect/oauth2/authorize?appid=" . $this->wechat_config['appid'] . "&redirect_uri=" . $redirect_url . "&response_type=code&scope={$scope}&state={$state}#wechat_redirect";
     }
 
     /**
-     * 获取token
-     * @return [type] 返回token
+     * 获取access_token（通过code）
+     * @param $code
+     * @return mixed
      */
-    public function getSingleAccessToken($code)
+    private function getOauthAccessToken($code)
     {
         $url = 'https://api.weixin.qq.com/sns/oauth2/access_token?appid=' . $this->wechat_config['appid'] . '&secret=' . $this->wechat_config['appsecret'] . '&code=' . $code . '&grant_type=authorization_code';
-        $access_token = $this->https_request($url);
-        return $access_token;
+        $data = $this->https_request($url);
+        return $data;
     }
 
     /**
-     * @explain
-     * 通过code获取用户openid以及用户的微信号信息
+     * 通过 access_token 和 code获取用户openid以及用户的微信号信息
+     * @param $access_token
+     * @param $openid
      * @return array|mixed
-     * @remark
-     * 获取到用户的openid之后可以判断用户是否有数据，可以直接跳过获取access_token,也可以继续获取access_token
-     * access_token每日获取次数是有限制的，access_token有时间限制，可以存储到数据库7200s. 7200s后access_token失效
-     **/
-    public function getUserInfo($access_token = [])
+     */
+    private function getUserInfo($access_token,$openid)
     {
         if (!$access_token) {
             return [
@@ -92,7 +106,7 @@ class WechatOauth
                 'msg' => '微信授权失败',
             ];
         }
-        $userinfo_url = 'https://api.weixin.qq.com/sns/userinfo?access_token=' . $access_token['access_token'] . '&openid=' . $access_token['openid'] . '&lang=zh_CN';
+        $userinfo_url = 'https://api.weixin.qq.com/sns/userinfo?access_token=' . $access_token . '&openid=' . $openid . '&lang=zh_CN';
         $userinfo_json = $this->https_request($userinfo_url);
         //获取用户的基本信息，并将用户的唯一标识保存在session中
         if (!$userinfo_json) {

@@ -14,12 +14,13 @@ class Index extends Controller
     }
 
     /**
-     * 微信扫码登录
+     * 微信扫码登录（暂不可测，需要开放平台注册网站信息）
      * @return string
      */
     public function wechatLogin(){
+        $code=input('code',0);
         $wechat_oauth=new WechatOauth();
-        $wechat_oauth->getUserAccessUserInfo();
+        $wechat_oauth->getUserAccessUserInfo($code,'snsapi_login');
     }
 
 }
